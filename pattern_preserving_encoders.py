@@ -26,8 +26,8 @@ dict_estimators['LinearRegression'] = LinearRegression()
 dict_estimators['LogisticRegression'] =  LogisticRegression()
 dict_estimators['SGDRegressor'] = SGDRegressor(loss='squared_loss')
 dict_estimators['SVR'] = SVR()
-dict_estimators['PolynomialRegression'] = PolynomialRegression(max_degree=5, interaction=True)
-dict_estimators['Perceptron'] = MLPRegressor(max_iter=150, hidden_layer_sizes=(50,10)) 
+dict_estimators['PolynomialRegression'] = PolynomialRegression(max_degree=3)
+dict_estimators['Perceptron'] = MLPRegressor(max_iter=150, hidden_layer_sizes=(10,5)) 
 
 class SimplePPEncoder(Encoder):
     """ Samples randomly 800 sets of codes (can be changed with self.sampling_size), 
@@ -50,12 +50,13 @@ class SimplePPEncoder(Encoder):
         self.estimator = dict_estimators[estimator_name]
         self.num_predictors = num_predictors
         self.codes = {}
+
         self.sample_size = 800
         self.history = []
         self.threshold = 0.01
 
     def fit(self, df, _):
-        self.codes
+        self.codes = {}
 
         categories = categorical_instances(df)
         num_categories = len(categories)
@@ -96,6 +97,8 @@ class AgingPPEncoder(Encoder):
         super(AgingPPEncoder, self).__init__()
         self.estimator = dict_estimators[estimator_name]
         self.num_predictors = num_predictors
+        self.codes = {}
+
         self.cycles = 800 # How many codes will be sampled, instead of generations
         self.threshold = 0.01
         self.prob_mutation = 0.25
@@ -162,6 +165,7 @@ class GeneticPPEncoder(Encoder):
         super(GeneticPPEncoder, self).__init__()
         self.estimator = dict_estimators[estimator_name]
         self.num_predictors = num_predictors
+        self.codes = {}
 
         self.generations = 80 # How many generations the GA will run for
         self.threshold = 0.01
