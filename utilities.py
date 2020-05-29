@@ -76,16 +76,23 @@ def plot(setsOfCodes):
     plt.figure(figsize=(16,8))
     plt.scatter(range(len(setsOfCodes)), [x.fitness for x in setsOfCodes])
 
-
 def replace_in_df(df, mapping): 
     """ Replaces categories by numbers according to the mapping
         If a category is not in mapping, it gets a random code
         mapping: dictionary from categories to codes
     """
+    # Ensure df has the right type
+    if not(isinstance(df,(pd.DataFrame))):
+        try: 
+            df = pd.DataFrame(df)
+        except:
+            raise Exception('Cannot convert to pandas.DataFrame')
+            
+    cat_cols = categorical_cols(df)
+
     # Updates the mapping with random codes for categories not 
     # previously in the mapping
-    for x in df.columns:
-        if is_categorical(df[x]):
+    for x in cat_cols:
             cats = np.unique(df[x])
             for x in cats:
                 if not(x in mapping):
@@ -104,11 +111,37 @@ def codes_to_dictionary(L):
         dict[k] = v
     return dict
 
-
 def is_categorical(array):
     """ Tests if the column is categorical
     """
     return array.dtype.name == 'category' or array.dtype.name == 'object'
+
+def categorical_cols(df): 
+    """ Return the column numbers of the categorical variables in df
+    """
+    cols = []
+    # Rename columns as numbers
+    df.columns = range(len(df.columns))
+    
+    for x in df.columns: 
+        if is_categorical(df[x]):
+            cols.append(x)
+    return cols
+
+def categorical_instances(df):
+    """ Returns an array with all the categorical instances in df
+    """
+    instances = []
+    cols = categorical_cols(df)
+    for x in cols:
+        instances = instances + list(np.unique(df[x]))
+
+    return instances
+
+def num_categorical_instances(df):
+    """ Returns the total number of categorical instances in df
+    """
+    return len(categorical_instances(df))
 
 def random_encoding_of_categories(df):
     """ Encodes the categorical variables with random numbers in [0,1]
@@ -133,22 +166,3 @@ def seeded_random_encoding_of_variable(var,seed):
     dictionary = dict(zip(np.unique(var),codes))
 
     return pd.DataFrame(var).replace(dictionary)
-
-def categorical_instances(df):
-    """ Returns an array with all the categorical instances in df
-    """
-    instances = []
-    for x in df.columns:
-        if is_categorical(df[x]):
-            instances = instances + list(np.unique(df[x]))
-    return instances
-
-def num_categorical_instances(df):
-    """ Returns the total number of categorical instances in df
-    """
-    k = 0
-    for x in df.columns:
-        if is_categorical(df[x]):
-            k += len(np.unique(df[x]))
-    return k
-
