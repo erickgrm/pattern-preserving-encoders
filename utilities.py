@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 class SetOfCodes(object):
     """ Object for an abstract set of codes. Consists of the codes themselves and 
         the attribute "fitness" 
+
     """
     def __init__(self):
-        self.codes = None
+        self.codes = {} # {col_num:{category:code}}
         self.fitness = None
 
     def get_fitness(self):
@@ -48,13 +49,11 @@ def regression(df, target, estimator, num_predictors):
     return mean_squared_error(target, estimator.predict(predictors))
 
 def evaluate(codes, df, estimator, num_predictors):
-    categories = categorical_instances(df)
     try:
-        mapping = dict(zip(categories, codes))
+        X = replace_in_df(df, codes)
     except:
-        print("Not the same number of categories and codes")
+        print("Incorrect number of codes")
 
-    X = replace_in_df(df, mapping)
     max_error = 0
     for x in X.columns:
         error = regression(X.drop([x], axis =1), X[x], estimator, num_predictors)
@@ -74,7 +73,7 @@ def plot(setsOfCodes):
     """ Plots the fitness of the sets of codes 
     """
     plt.figure(figsize=(16,8))
-    plt.scatter(range(len(setsOfCodes)), [x.fitness for x in setsOfCodes])
+    plt.scatter(range(len(setsOfCodes)), [x.fitness for x in setsOfCodes], marker='X')
 
 def replace_in_df(df, mapping): 
     """ Replaces categories by numbers according to the mapping
@@ -93,10 +92,10 @@ def replace_in_df(df, mapping):
     # Updates the mapping with random codes for categories not 
     # previously in the mapping
     for x in cat_cols:
-            cats = np.unique(df[x])
-            for x in cats:
-                if not(x in mapping):
-                    mapping[x] = np.random.uniform(0,1)
+        values = np.unique(df[x])
+        for v in values:
+            if not(v in mapping[x]):
+                mapping[x][v] = np.random.uniform(0,1)
 
     return df.replace(mapping)
 
@@ -109,19 +108,10 @@ def scale_df(df):
 
     for x in numerical_cols:
         if min(df[x].values) < 0.0 or 1.0 < max(df[x].values):
-            df[x] = sc.fit_transform(df[x].values.reshape(-1,1))
+            df.loc[0:, x] = sc.fit_transform(df[x].values.reshape(-1,1))
+
     return df
 
-
-def codes_to_dictionary(L):
-    """ L: list of strings of the form str + ": " + float
-        RETURNS dictionary with elements str : float
-    """
-    dict = {}
-    for x in L:
-        k, v = split_str(x)
-        dict[k] = v
-    return dict
 
 def is_categorical(array):
     """ Tests if the column is categorical
@@ -141,40 +131,44 @@ def categorical_cols(df):
     return cols
 
 def categorical_instances(df):
-    """ Returns an array with all the categorical instances in df
+    """ Returns an array with all the categorical instances in df, 
+        column by column
     """
-    instances = []
+    instances = {}
     cols = categorical_cols(df)
     for x in cols:
-        instances = instances + list(np.unique(df[x]))
+        instances[x] = list(np.unique(df[x]))
 
     return instances
 
 def num_categorical_instances(df):
     """ Returns the total number of categorical instances in df
     """
-    return len(categorical_instances(df))
+    instances = categorical_instances(df)
+
+    return np.sum([len(instances[x]) for x in instances])
 
 def random_encoding_of_categories(df):
     """ Encodes the categorical variables with random numbers in [0,1]
     """
-    for x in df.columns:
-        if is_categorical(df[x]):
-            np.random.seed()
-            k = len(np.unique(df[x]))
-            codes = np.random.uniform(0,1,k)
-            dictionary = dict(zip(np.unique(df[x]),codes))
-            df[x] = df[x].replace(dictionary)
-    return df
+    cols = categorical_cols(df)
+    mapping = {}
+    for x in cols:
+        np.random.seed()
+        codes = np.random.uniform(0,1,len(np.unique(df[x])))
+        mapping[x] = dict(zip(np.unique(df[x]), codes))
 
-def seeded_random_encoding_of_variable(var,seed):
-    """ Encodes the target variable with random numbers in [0,1]
-        var can be a pandas DataFrame or a numpy array
-        returns the encoded target as a pandas DataFrame
-    """
-    k = len(np.unique(var))
-    np.random.seed(seed)
-    codes = np.random.uniform(0,1,k)
-    dictionary = dict(zip(np.unique(var),codes))
+    return df.replace(mapping)
 
-    return pd.DataFrame(var).replace(dictionary)
+def make_categorical(df, cat_cols=[]):
+    already_categorical = categorical_cols(df)
+    cols = [x for x in cat_cols if x not in already_categorical]
+    categories = {}
+    for x in cols:
+        unique = np.unique(df[x])
+        xcats = {}
+        for v in unique:
+            xcats[v]= 'X'+str(x)+'_'+str(v)
+
+        categories[x] = xcats
+    return df.replace(categories)
