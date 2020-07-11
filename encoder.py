@@ -12,7 +12,7 @@ class Encoder():
         df = scale_df(df)
         return replace_in_df(df, self.codes)
 
-    def fit_transform(self, df, y):
+    def fit_transform(self, df, y=None):
         self.fit(df, y)
         return replace_in_df(df, self.codes)
 

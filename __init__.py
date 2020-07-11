@@ -1,6 +1,7 @@
 """ 
-    Implementation of several Pattern Preserving Encoders. For details see: 
-    "On the encoding of  categorical variables for Machine Learning applications", Ch 3
+    Implementation of several Pattern Preserving Encoders. For details see:
+    "On the encoding of  categorical variables for Machine Learning applica-
+    tions", Chapter 3.
 
     author github.com/erickgrm
 """
@@ -54,18 +55,18 @@ class SimplePPEncoder(Encoder):
         self.categories = {} 
         self.n_thread = min(cpu_count()-1, n_thread)
 
-    def fit(self, df, _):
+    def fit(self, df, target=None):
         self.codes = {} #Restart in case the same instance is called
-
-        # Scale numerical variables to [0,1]
-        self.df = scale_df(df)
-
+        self.df = scale_df(df.copy())
         self.categories = categorical_instances(self.df)
 
         # Parallel creation of self.sample_size sets of codes
         pool = Pool(self.n_thread)
         self.history = pool.map(self.new_soc, range(self.sample_size))
         pool.close()
+
+        # Try to free up memory
+        del self.df
         
         # Pick best set of codes
         self.best_soc = min(self.history, key=lambda x: x.fitness)
@@ -117,9 +118,9 @@ class AgingPPEncoder(Encoder):
         self.jobs = int(self.cycles/self.job_size)
         
 
-    def fit(self, df, _):
+    def fit(self, df, target=None):
         self.codes = {} # restart in case the same instance is called
-        self.df = scale_df(df)
+        self.df = scale_df(df.copy())
         self.categories = categorical_instances(self.df)
 
         # Evolve the population
@@ -127,6 +128,7 @@ class AgingPPEncoder(Encoder):
         parallel_outputs = pool.map(self.aging_algorithm, range(self.jobs))
         pool.close()
 
+        # Try to free up memory
         del self.df
 
         # Flatten outputs
@@ -206,12 +208,16 @@ class GeneticPPEncoder(Encoder):
         self.history = []
         self.n_thread = min(cpu_count(), n_thread)
 
-    def fit(self, df, _):
-        self.codes = {}  # restart in case the same instance is called      
-        self.df = scale_df(df)
+    def fit(self, df, target=None):
+        self.codes = {} # restart in case the same instance is called
+        self.df = scale_df(df.copy())
+        self.categories = categorical_instances(self.df)
 
         # Evolve the population
         self.EGA()
+
+        # Try to free up memory
+        del self.df
 
         # Pick the best set of codes
         self.best_soc = min(self.population, key=lambda x: x.fitness)
@@ -220,8 +226,6 @@ class GeneticPPEncoder(Encoder):
     def EGA(self):
         """ Implementation of the Eclectic Genetic Algorithm
         """
-        self.categories = categorical_instances(self.df)
-
         # Parallel initialisation with random individuals  
         pool = Pool(self.n_thread)
         self.history = pool.map(self.new_soc, range(self.size_population))
