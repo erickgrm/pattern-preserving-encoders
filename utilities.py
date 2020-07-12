@@ -130,6 +130,7 @@ def categorical_cols(df):
             cols.append(x)
     return cols
 
+
 def categorical_instances(df):
     """ Returns an array with all the categorical instances in df, 
         column by column
@@ -141,12 +142,14 @@ def categorical_instances(df):
 
     return instances
 
+
 def num_categorical_instances(df):
     """ Returns the total number of categorical instances in df
     """
     instances = categorical_instances(df)
 
     return np.sum([len(instances[x]) for x in instances])
+
 
 def random_encoding_of_categories(df):
     """ Encodes the categorical variables with random numbers in [0,1]
@@ -160,7 +163,16 @@ def random_encoding_of_categories(df):
 
     return df.replace(mapping)
 
-def make_categorical(df, cat_cols=[]):
+
+def var_types(df, cat_cols):
+    categorical_var_list = []
+    for x in df.columns:
+        if is_categorical(df[x]) or x in cat_cols:
+            categorical_var_list.append(x)
+
+    return categorical_var_list
+
+def set_categories(df, cat_cols=[]):
     already_categorical = categorical_cols(df)
     cols = [x for x in cat_cols if x not in already_categorical]
     categories = {}
@@ -172,3 +184,4 @@ def make_categorical(df, cat_cols=[]):
 
         categories[x] = xcats
     return df.replace(categories)
+

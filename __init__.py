@@ -49,15 +49,22 @@ class SimplePPEncoder(Encoder):
         self.sample_size = sample_size
         self.best_soc = None
         self.codes = {}
+        self.categorical_var_list =[]
 
         self.df = None
         self.history = []
         self.categories = {} 
         self.n_thread = min(cpu_count()-1, n_thread)
 
-    def fit(self, df, target=None):
-        self.codes = {} #Restart in case the same instance is called
-        self.df = scale_df(df.copy())
+    def fit(self, df, target=None, cat_cols=[]):
+        #Restart in case the same instance is called
+        self.codes = {} 
+
+        # Set which variables will be encoded
+        self.categorical_var_list = var_types(df, cat_cols)
+
+        # Scale and transform vars in cat_cols to be categorical if needed
+        self.df = set_categories(scale_df(df.copy()), self.categorical_var_list)
         self.categories = categorical_instances(self.df)
 
         # Parallel creation of self.sample_size sets of codes
@@ -109,6 +116,7 @@ class AgingPPEncoder(Encoder):
         self.subsample_size = int(self.size_population/5)
         self.codes = {}
         self.best_soc = None
+        self.categorical_var_list =[]
 
         self.df = None
         self.history = []
@@ -118,9 +126,15 @@ class AgingPPEncoder(Encoder):
         self.jobs = int(self.cycles/self.job_size)
         
 
-    def fit(self, df, target=None):
-        self.codes = {} # restart in case the same instance is called
-        self.df = scale_df(df.copy())
+    def fit(self, df, target=None, cat_cols=[]):
+        #Restart in case the same instance is called
+        self.codes = {} 
+
+        # Set which variables will be encoded
+        self.categorical_var_list = var_types(df, cat_cols)
+
+        # Scale and transform vars in cat_cols to be categorical if needed
+        self.df = set_categories(scale_df(df.copy()), self.categorical_var_list)
         self.categories = categorical_instances(self.df)
 
         # Evolve the population
@@ -198,6 +212,7 @@ class GeneticPPEncoder(Encoder):
         self.best_soc = None
         self.codes = {}
         self.categories = {}
+        self.categorical_var_list = []
 
         self.df = None
         self.generations = generations # How many generations the GA will run for
@@ -208,9 +223,15 @@ class GeneticPPEncoder(Encoder):
         self.history = []
         self.n_thread = min(cpu_count(), n_thread)
 
-    def fit(self, df, target=None):
-        self.codes = {} # restart in case the same instance is called
-        self.df = scale_df(df.copy())
+    def fit(self, df, target=None, cat_cols=[]):
+        #Restart in case the same instance is called
+        self.codes = {} 
+
+        # Set which variables will be encoded
+        self.categorical_var_list = var_types(df, cat_cols)
+
+        # Scale and transform vars in cat_cols to be categorical if needed
+        self.df = set_categories(scale_df(df.copy()), self.categorical_var_list)
         self.categories = categorical_instances(self.df)
 
         # Evolve the population
@@ -355,35 +376,3 @@ class GeneticPPEncoder(Encoder):
 
     def plot_history(self):
         plot(self.history)
-
-class NaivePPEncoder(Encoder):
-    """ Samples randomly 500 sets of codes for each categorical variable in a sequential manner 
-        Encodes with best found 
-    """
-    def __init__(self, estimator_name='LinearRegression', num_predictors=1):
-        """ Allows any of the estimators names in dict_estimators
-        """
-        super(NaivePPEncoder, self).__init__()
-        self.estimator = dict_estimators[estimator_name]
-        self.num_predictors = num_predictors
-        self.sampling_size = 500
-
-
-    def fit(self, df, _):
-        # make sure we can take num_predictors variables as predictors
-        if len(df.columns)-1 < self.num_predictors:
-            self.num_predictors = len(df.columns)-1
-
-        for x in df.columns.values:
-            if is_categorical(df[x]):
-                errors = {}
-                for i in range(self.sampling_size):
-                    seed = np.random.randint(0,10000)
-                    target = seeded_random_encoding_of_variable(df[x], seed)
-                    errors[seed] = regression(df.drop([x],axis=1), target, self.estimator, self.num_predictors)
-                best_seed = min(errors, key=lambda k: errors[k])
-
-                np.random.seed(best_seed)
-                xcodes = np.random.uniform(0,1,len(np.unique(df[x]))) 
-
-                self.codes.update(zip(np.unique(df[x]), xcodes))
